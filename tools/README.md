@@ -88,6 +88,20 @@
 | `probe_dualsense.py` | 探测虚拟 DualSense 的 HID 端点，找可读的扳机数据通道。 |
 | `sniff_ds_bytes.py` | 监听虚拟 DualSense 的输入报告，找出随动作变化的字节。 |
 
+### USB 层抓包分析（早期路线，后被 HID 层取代）
+
+| 脚本 | 说明 |
+| --- | --- |
+| `parse_rumble.py` | 解析 **USBPcap** 抓包文件（linktype 249），提取主机→设备（OUT）方向的震动/输出指令，可按 Xbox360 输出报告解码（`payload[0]==0x00 and payload[1]==0x08` → 左/右马达字节）。支持 `--device N` 过滤、`--all` 显示上行包、`--follow` 实时跟踪文件增长。 |
+
+> 这是**早期从 USB 协议层**摸手柄输出的路线，后来产品改用更直接的
+> **HID 层**方案（上方各组脚本）。保留它是因为对「USB vs 蓝牙差异」这类
+> 未完成的问题仍然有用。
+>
+> ⚠️ 配套的抓包文件 `*.pcap` **不在本仓库里**：整机 USB 抓包会包含
+> **所有** USB 设备（键盘、存储等）的流量，不适合公开。需要时自行用
+> USBPcap 重新抓一份。
+
 ## 数据文件
 
 | 文件 | 说明 |
@@ -104,4 +118,8 @@
 python tools/verify_two_groups.py    # 验证双信号组奇偶判定
 python tools/verify_hid_rule.py      # 验证 HID byte4~11 反映输入活动
 python tools/measure_zip_dur.py      # 测量滑索动作时长
+
+# USB 层抓包分析（需要先用 USBPcap 抓一份 .pcap）
+python tools/parse_rumble.py capture.pcap            # 只看下行指令
+python tools/parse_rumble.py capture.pcap --follow   # 实时跟踪新指令
 ```
