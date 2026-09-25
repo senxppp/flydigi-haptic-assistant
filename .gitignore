@@ -27,6 +27,8 @@ htmlcov/
 logs/
 *.log
 *.csv
+# 例外：tools/ 下的测量数据要纳入版本管理（上面的 *.csv 会误伤它们）
+!tools/*.csv
 
 # 编辑器
 .vscode/
