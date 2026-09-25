@@ -111,6 +111,8 @@
 | `_dual_rms.csv` | 纯音频 RMS 逐帧（replay_trigger / sweep_trigger 的输入） |
 | `_zp.csv` | 滑索逐帧特征（rms + 四频段 + 信号位） |
 | `zipslide.csv` | 滑索早期采集：左右声道 RMS / onset / zcr / 频段 / drive |
+| `frames_airflow.csv` | 逐帧全特征录制（2252 帧）：左右声道 rms / onset / zcr / 低频带 / drive / agc。用于对比「气流声」通道开关前后的映射结果 |
+| `frames_whoosh.csv` | 逐帧全特征录制（3002 帧）：同上格式，针对「呼呼声」段（`analyze_bands.py` / `verify_airflow.py` 的输入） |
 
 ## 跑法
 
