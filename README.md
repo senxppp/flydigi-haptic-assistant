@@ -1,5 +1,7 @@
 # Flydigi APEX5 音频转震动中间层 · 震动小助手
 
+> **关键词 Keywords：飞智八爪鱼5 / Flydigi APEX 5 / 八爪鱼5 / 震动小助手 / 音频转震动 Audio to Haptics / 震动中间层 Haptic Middleware / HD 震动 HD Haptics / 音圈马达 Voice Coil Haptics / DualSense 模拟 / DS 模式 DS Mode / 自适应扳机 Adaptive Triggers / 扳机震动 Trigger Vibration / 飞智空间站 Flydigi Space Station / 私有 HID 协议 usage page 0xFFA0 / FORCEADAPT / WASAPI Loopback 系统音频捕获 / 明日方舟：终末地 Arknights: Endfield / 赛博朋克2077 Cyberpunk 2077 / 滑索震动 Zipline Haptics / DS Unlock / 进程诱饵 Process Decoy / 手柄模拟器 Gamepad Emulator**
+
 让八爪鱼5在 DS 模式下玩「音频直驱」类游戏（《明日方舟：终末地》等）也能震动。
 
 包含两个能力：
@@ -7,6 +9,54 @@
 - **扳机震动对齐** —— 读取游戏日志，让滑索等动作的震动与实际动作精确同步
 
 > ⚠️ 仅用于个人学习与硬件折腾，请勿用于任何违反游戏用户协议或法律法规的用途。
+
+---
+
+## 与 DS Unlock 配合使用（推荐组合）
+
+本项目和 **[DS Unlock](https://github.com/senxppp/ds-unlock)** 是**互补的两块拼图**，强烈建议一起用。
+
+### 各自负责什么
+
+| | [DS Unlock](https://github.com/senxppp/ds-unlock) | 震动小助手（本项目） |
+|---|---|---|
+| **目标** | 让**任意游戏**都能用上 DS 模式的自适应扳机 | 让 DS 模式下**也有握把震动** |
+| **手段** | 3.5KB 同名诱饵进程，骗开空间站的**进程名白名单** | 拦截系统音频 → 实时分析 → `0xFFA0` 私有协议**直发握把马达** |
+| **产物** | 扳机产生真实阻力（FORCEADAPT 指令） | 握把双马达随音频实时震动 |
+| **不碰什么** | 不注入、不读内存、不挂钩子，零反作弊风险 | 同上，只写自己手柄的 HID 接口 |
+
+### 为什么必须两个一起用
+
+DS Unlock 的 README 里「Known Issues」第一条写得很清楚：
+
+> ❗ **DualSense 音圈马达（voice coil）触觉无法转译。** 游戏里专为 DualSense 双音圈线性马达
+> 设计的精细 HD 震动（以音频流形式写入输出报文的 haptics）**目前不会被翻译**：飞智的管线
+> 只处理扳机阻力效果（FORCEADAPT），而八爪鱼的震动马达与 DualSense 的音圈执行器硬件完全
+> 不同，这部分报文被直接丢弃。
+
+翻译成人话：**开了 DS 模式，你拿到自适应扳机，但丢掉精细震动。**
+
+本项目走的正是另一条路——**绕开 DS 翻译管线**：自己拦截系统音频、自己算驱动值、
+直接把震动帧写进手柄的 `0xFFA0` 私有接口。所以两者天然分工：
+
+- **DS Unlock** 负责「扳机阻力」→ 走 `FORCEADAPT` 翻译管线
+- **震动小助手** 负责「握把震动」→ 走自构造私有帧直发
+- 两者都写同一个 `0xFFA0` 接口，实测可**与飞智空间站并存无冲突**（见下方压测结果）
+
+### 推荐使用顺序
+
+1. 先按 DS Unlock 的说明把 **DS 模式打开**
+   （空间站里给《赛博朋克 2077》开启「自适应扳机」→ 切到 DS 模式 → 跑诱饵进程）
+2. 再启动 **震动小助手**（`launcher.py` 或 `dist/震动小助手.exe`），点一下总开关
+3. 最后启动游戏
+
+> **顺序说明**：DS Unlock 要求「先进 DS 模式再进游戏」，因为模式切换伴随虚拟设备
+> 销毁/重建（约 1~3 秒）；震动小助手没有这个限制，运行中随时开关都行。
+
+> **关于诱饵进程名**：本项目早期逆向时用 `HorizonForbiddenWest.exe` 触发过 DS 模式，
+> DS Unlock 用的是 `Cyberpunk2077.exe`。空间站**只按进程名匹配**（不校验路径、不校验
+> 签名），所以两者都能生效；但只有《赛博朋克 2077》在空间站里有「自适应扳机」开关，
+> 这正是 DS Unlock 选它当钥匙的原因。
 
 ---
 
@@ -159,6 +209,9 @@ python -m src.main test-out --mode test               # 直接测震动输出层
 | 空间站 UI 震动测试（IPC→私有协议） | **通**。`IpcCommandEnum_CallGripVibration`(4177) → `VibrationControllerCommandNewXInput` |
 | **自构造私有协议帧直发 0xFFA0 接口** | **通（本项目采用）**。握把双马达独立控制已验证 |
 
+> 这张表正是「必须配合 DS Unlock 使用」的技术依据：**游戏想通过 DS 管线直驱震动，
+> 路是堵死的**（前两行）。所以震动必须由本项目在外部补上。
+
 ### 震动输出协议（逆向自 SpaceStationService.exe，已实测）
 
 - 目标接口：`VID_37D7 PID_2501 / usage_page 0xFFA0`（MI_02 Col01），输出报文 32 字节，报文 ID 0x03。
@@ -177,7 +230,9 @@ python -m src.main test-out --mode test               # 直接测震动输出层
 
 - 空间站：`D:\Flydigi Space Station\`；日志 `Logs\service_log_YYYYMMDD.txt`。
 - DS 模式 = 魔改 ViGEmBus 内核驱动 `driver\hidvirtualdriver.sys`，虚拟出 `VID_054C PID_0CE6`。
-- 触发 DS 模式：启动名为 `HorizonForbiddenWest.exe` 的进程，~5 秒后日志出现 `OnGameModStart`。
+- 触发 DS 模式：启动一个**进程名在白名单里**的进程（如 `HorizonForbiddenWest.exe`
+  或 `Cyberpunk2077.exe`），~5 秒后日志出现 `OnGameModStart`。日常使用建议直接用
+  [DS Unlock](https://github.com/senxppp/ds-unlock) 的 `DSSwitch.exe` 一键开关。
 - 反编译：`ilspycmd --bundle-entry Flydigi.ControllerSdk.dll "D:\Flydigi Space Station\SpaceStationService.exe"`。
 
 ---
@@ -221,9 +276,13 @@ python -m src.main test-out --mode test               # 直接测震动输出层
 ## 目录结构
 
 ```
-flydigi-haptic-middleware/
-├── NEXT-AI-交接包.md          上一阶段交接包
+flydigi-haptic-assistant/
 ├── README.md
+├── LICENSE                    MIT
+├── launcher.py                图形界面（总开关）
+├── 震动小助手.spec             PyInstaller 打包配置
+├── 震动小助手-使用说明.md      面向使用者的说明
+├── TRIGGER-GRIP-说明.md        扳机联动判据完整说明
 ├── vib_out/flydigi_vib.py     ① 震动输出驱动（已验证，可独立使用）
 ├── src/
 │   ├── audio/loopback.py      ② WASAPI Loopback 捕获
@@ -232,21 +291,40 @@ flydigi-haptic-middleware/
 │   │   ├── mapper.py          ④ 映射曲线 + ADSR + AGC
 │   │   └── presets.py         四套预设
 │   ├── output/haptic_out.py   输出的工程化封装（看护/限速/自动归零）
+│   ├── trigger/source.py      扳机联动（双信号组奇偶判定）
 │   ├── core/
 │   │   ├── pipeline.py        三线程管线
 │   │   └── config.py          配置系统
 │   └── main.py                CLI 入口
 ├── configs/config.json        用户配置
-├── tests/test_algorithm.py    算法单元测试（12 项）
-└── logs/                      运行日志
+├── tests/                     单元测试（19 项）
+└── tools/                     逆向调试脚本与测量数据（见 tools/README.md）
 ```
+
+> `tools/` 里是开发期的探针脚本和测量 CSV，**不是运行时代码**。
+> 它们记录了核心结论是怎么一步步验证出来的，索引见 [`tools/README.md`](tools/README.md)。
+
+---
+
+## 相关项目
+
+- **[DS Unlock](https://github.com/senxppp/ds-unlock)** —— 飞智八爪鱼5 DS 模式解锁开关。
+  用 3.5KB 诱饵进程骗开空间站的进程名白名单，让任意游戏都能用上自适应扳机。
+  **与本项目配合使用**，见上方[《与 DS Unlock 配合使用》](#与-ds-unlock-配合使用推荐组合)。
+
+---
+
+## 已知局限
+
+- **音圈马达级 HD 触觉无法完全复刻**：本项目是「音频 → 转子马达」的近似映射，
+  不能还原 DualSense 双音圈线性马达的精细质感。这是硬件差异，不是实现缺陷。
+- **系统音量直接影响震动强度**（见「坑位」第 4 条）。
+- 空间站若更新检测逻辑，DS 模式的触发方式可能失效（当前为进程名匹配）。
 
 ---
 
 ## 待办
 
-- ⬜ **UI 界面**（文档第六阶段）：目前只有 CLI 实时强度条。做 WPF/WinUI 或 Web 面板。
-- ⬜ **真机验证**（9.6 问题7）：装《明日方舟：终末地》实测音频直驱行为。
-- ⬜ **扳机震动**（9.6 问题1，非阻塞）：反编译 `TestForceTriggerCommandFactory` 逆向独立命令族。
 - ⬜ **USB vs 蓝牙差异**（9.6 问题5）：USB 下 0xFFA0 接口行为应相同但未验证。
-- ⬜ **安装包与用户文档**（第七阶段）。
+- ⬜ **扳机字节 [7][8] 复用**（9.6 问题1，非阻塞）：反编译 `TestForceTriggerCommandFactory` 逆向独立命令族。
+- ⬜ **多游戏适配**：目前滑索判据是针对《明日方舟：终末地》日志调出来的，换游戏需要重新标定。
