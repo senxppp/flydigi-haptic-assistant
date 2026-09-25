@@ -1,0 +1,61 @@
+{
+  "preset": "action",
+  "audio": {
+    "frame_ms": 20,
+    "device_hint": null,
+    "sample_rate": 48000,
+    "capture_queue_seconds": 0.5
+  },
+  "analysis": {},
+  "envelope": {},
+  "mapping": {
+    "log_b": 30.0,
+    "silence_threshold": 0.008,
+    "master_gain": 1.0,
+    "low_boost_gain": 2.2,
+    "onset_boost": 0.55,
+    "agc_enabled": true,
+    "agc_target": 0.75,
+    "agc_max_gain": 6.0,
+    "agc_noise_floor": 0.0025,
+    "agc_attack_ms": 120.0,
+    "agc_release_ms": 500.0,
+    "soft_clip": true,
+    "max_drive": 255,
+    "min_drive": 0,
+    "max_delta_per_frame": 140,
+    "use_airflow": false,
+    "airflow_max_drive": 180,
+    "airflow_onset_max": 0.35,
+    "airflow_floor": 0.0018,
+    "airflow_span": 0.0014
+  },
+  "output": {
+    "send_rate_hz": 60,
+    "auto_stop_ms": 120,
+    "safety_max_drive": 255,
+    "device_watchdog_s": 2.0
+  },
+  "trigger": {
+    "enabled": true,
+    "drive": 75,
+    "log_path": "D:/Flydigi Space Station/Logs/service_log_{date}.txt",
+    "log_key": "ForceTriggerControllerCommandNewXInput",
+    "poll_ms": 4.0,
+    "dedup_ms": 300.0,
+    "max_ms": 20000.0,
+    "min_ms": 150.0,
+    "use_audio_guard": false,
+    "abs_quiet": 0.0008,
+    "quiet_frames": 25
+  },
+  "logging": {
+    "level": "INFO",
+    "stats_interval_s": 5.0,
+    "log_to_file": true
+  },
+  "ui": {
+    "show_live": true,
+    "show_waveform": false
+  }
+}
